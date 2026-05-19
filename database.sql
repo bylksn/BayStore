@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS members (
     membership_type ENUM('bronze', 'silver', 'gold') DEFAULT 'bronze',
     total_spent DECIMAL(15, 2) DEFAULT 0.00,
     join_date DATE NOT NULL,
+    password VARCHAR(255) NULL,
+    role ENUM('admin', 'member') DEFAULT 'member',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -80,12 +82,13 @@ INSERT INTO books (id, title, author, category, price, stock, isbn, description)
 -- ============================================
 -- INSERT DATA: MEMBERS
 -- ============================================
-INSERT INTO members (id, name, email, phone, membership_type, total_spent, join_date) VALUES
-('M001', 'Bayu Pratama', 'bayu@email.com', '081234567890', 'gold', 1500000.00, '2024-01-15'),
-('M002', 'Siti Rahayu', 'siti@email.com', '082345678901', 'silver', 750000.00, '2024-02-20'),
-('M003', 'Andi Wijaya', 'andi@email.com', '083456789012', 'bronze', 150000.00, '2024-03-10'),
-('M004', 'Ratna Sari', 'ratna@email.com', '084567890123', 'bronze', 0.00, '2025-05-18'),
-('M005', 'Dedy Gunawan', 'dedy@email.com', '085678901234', 'silver', 600000.00, '2024-04-05');
+INSERT INTO members (id, name, email, phone, membership_type, total_spent, join_date, password, role) VALUES
+('A001', 'Administrator', 'admin@baystore.com', '000000000000', 'gold', 0.00, '2024-01-01', '$2y$10$tgiatHx2pspZ6.aLnnlYyeSiS71XxYL33914VeB3Qqg0eEi95c4fC', 'admin'),
+('M001', 'Bayu Pratama', 'bayu@email.com', '081234567890', 'gold', 1500000.00, '2024-01-15', NULL, 'member'),
+('M002', 'Siti Rahayu', 'siti@email.com', '082345678901', 'silver', 750000.00, '2024-02-20', NULL, 'member'),
+('M003', 'Andi Wijaya', 'andi@email.com', '083456789012', 'bronze', 150000.00, '2024-03-10', NULL, 'member'),
+('M004', 'Ratna Sari', 'ratna@email.com', '084567890123', 'bronze', 0.00, '2025-05-18', NULL, 'member'),
+('M005', 'Dedy Gunawan', 'dedy@email.com', '085678901234', 'silver', 600000.00, '2024-04-05', NULL, 'member');
 
 -- ============================================
 -- INSERT DATA: TRANSACTIONS

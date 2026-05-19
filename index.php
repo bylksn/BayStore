@@ -1,6 +1,14 @@
 <?php
 ob_start();
 session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+$userRole = $_SESSION['role'] ?? 'member';
+
 require_once __DIR__ . '/classes/DataStore.php';
 
 $store = DataStore::getInstance();
@@ -9,6 +17,9 @@ $jsRedirect = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+
+    // Hanya admin yang bisa melakukan mutasi data
+    if ($userRole === 'admin') {
 
     if ($action === 'add_book') {
         $id   = $store->generateBookId();
@@ -126,10 +137,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $jsRedirect = '?page=transactions';
     }
+    } // End of if ($userRole === 'admin')
 }
 
 
-$page  = $_GET['page'] ?? 'dashboard';
+$page  = $_GET['page'] ?? ($userRole === 'admin' ? 'dashboard' : 'member_dashboard');
+if ($userRole === 'member') {
+    $page = 'member_dashboard'; // Force members to only see their dashboard
+}
 $stats = $store->getStats();
 ?>
 <!DOCTYPE html>
@@ -801,13 +816,20 @@ $stats = $store->getStats();
     </div>
     <nav>
         <div class="nav-section">Menu Utama</div>
-        <a href="?page=dashboard"    class="nav-item <?= $page==='dashboard'   ?'active':'' ?>"><i class="fa-solid fa-house"></i> Dashboard</a>
-        <a href="?page=books"        class="nav-item <?= $page==='books'       ?'active':'' ?>"><i class="fa-solid fa-book"></i> Buku</a>
-        <a href="?page=members"      class="nav-item <?= $page==='members'     ?'active':'' ?>"><i class="fa-solid fa-users"></i> Member</a>
-        <a href="?page=transactions" class="nav-item <?= $page==='transactions'?'active':'' ?>"><i class="fa-solid fa-receipt"></i> Transaksi</a>
+        <?php if ($userRole === 'admin'): ?>
+            <a href="?page=dashboard"    class="nav-item <?= $page==='dashboard'   ?'active':'' ?>"><i class="fa-solid fa-house"></i> Dashboard</a>
+            <a href="?page=books"        class="nav-item <?= $page==='books'       ?'active':'' ?>"><i class="fa-solid fa-book"></i> Buku</a>
+            <a href="?page=members"      class="nav-item <?= $page==='members'     ?'active':'' ?>"><i class="fa-solid fa-users"></i> Member</a>
+            <a href="?page=transactions" class="nav-item <?= $page==='transactions'?'active':'' ?>"><i class="fa-solid fa-receipt"></i> Transaksi</a>
+        <?php else: ?>
+            <a href="?page=member_dashboard" class="nav-item <?= $page==='member_dashboard' ?'active':'' ?>"><i class="fa-solid fa-user"></i> Dashboard Saya</a>
+        <?php endif; ?>
+        
+        <div class="nav-section">Akun</div>
+        <a href="logout.php" class="nav-item" style="color: var(--error)"><i class="fa-solid fa-right-from-bracket"></i> Keluar</a>
     </nav>
     <div class="sidebar-footer">
-        <i class="fa-solid fa-store" style="color:var(--primary);font-size:1.1rem"></i><br>BayStore<br><span style="font-size: 0.65rem; margin-top: 2px; display: block;">Online Bookstore</span>
+        <i class="fa-solid fa-circle-user" style="color:var(--primary);font-size:1.1rem"></i><br><?= htmlspecialchars($_SESSION['user_name'] ?? 'User') ?><br><span style="font-size: 0.65rem; margin-top: 2px; display: block; text-transform: uppercase"><?= $userRole ?></span>
     </div>
 </aside>
 
@@ -1331,6 +1353,106 @@ function calcPreview() {
     document.getElementById('previewWrap').style.display = 'block';
 }
 </script>
+<?php break;
+
+// ════════════════════ MEMBER DASHBOARD ════════════════════
+case 'member_dashboard':
+    $currentMember = $store->getMember($_SESSION['user_id']);
+    $myTxs = $store->getMyTransactions($_SESSION['user_id']);
+    if (!$currentMember) {
+        echo "<div class='alert alert-error'>Akun tidak ditemukan.</div>";
+        break;
+    }
+?>
+<div class="page-header">
+    <h2>Dashboard Saya</h2>
+    <p>Selamat datang, <?= htmlspecialchars($currentMember->getName()) ?></p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card <?= $currentMember->getMembershipType() === 'gold' ? 'gold' : ($currentMember->getMembershipType() === 'silver' ? 'blue' : 'green') ?>">
+        <div class="icon-bg"><i class="fa-solid fa-medal"></i></div>
+        <div class="label">Membership</div>
+        <div class="value" style="text-transform: capitalize; font-size: 2rem;"><?= $currentMember->getMembershipType() ?></div>
+        <div class="sub">Diskon <?= $currentMember->getDiscount() * 100 ?>%</div>
+    </div>
+    <div class="stat-card purple">
+        <div class="icon-bg"><i class="fa-solid fa-wallet"></i></div>
+        <div class="label">Total Belanja</div>
+        <div class="value" style="font-size:1.6rem; margin:14px 0 10px;">Rp <?= number_format($currentMember->getTotalSpent(),0,',','.') ?></div>
+        <div class="sub">Akumulasi Belanja</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="icon-bg"><i class="fa-solid fa-receipt"></i></div>
+        <div class="label">Transaksi</div>
+        <div class="value"><?= count($myTxs) ?></div>
+        <div class="sub">Total Pesanan</div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 30px;">
+    <div class="card-header"><h3><i class="fa-solid fa-book"></i> Katalog Buku</h3></div>
+    <table>
+        <thead><tr><th>Judul Buku</th><th>Kategori</th><th>Harga</th><th>Status</th></tr></thead>
+        <tbody>
+        <?php foreach ($store->getBooks() as $b): ?>
+        <tr>
+            <td>
+                <strong><?= htmlspecialchars($b->getTitle()) ?></strong><br>
+                <span style="font-size:0.8rem;color:var(--text-dim)"><?= htmlspecialchars($b->getAuthor()) ?></span>
+            </td>
+            <td><span class="badge"><?= htmlspecialchars($b->getCategory()) ?></span></td>
+            <td style="color:var(--green)"><strong><?= $b->getFormattedPrice() ?></strong></td>
+            <td><?= $b->isAvailable() ? '<span style="color:var(--green)"><i class="fa-solid fa-check"></i> Tersedia</span>' : '<span style="color:var(--error)"><i class="fa-solid fa-xmark"></i> Habis</span>' ?></td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+
+<div class="card" style="margin-top: 30px;">
+    <div class="card-header"><h3><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Belanja</h3></div>
+    <?php if(empty($myTxs)): ?>
+    <div class="empty">Belum ada transaksi.</div>
+    <?php else: ?>
+    <table>
+        <thead><tr><th>ID Transaksi</th><th>Detail Item</th><th>Subtotal</th><th>Diskon</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>
+        <?php foreach ($myTxs as $txObj): 
+            $d = $txObj->toArray();
+        ?>
+        <tr>
+            <td><code style="color:var(--accent)"><?= $d['id'] ?></code></td>
+            <td class="tx-items">
+                <?php if (!empty($d['items'])): ?>
+                <div style="cursor:pointer; transition:var(--transition);" onclick="viewDetail('<?= $d['id'] ?>')" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color=''">
+                    <i class="fa-solid fa-book" style="color:var(--primary);font-size:0.75rem"></i> 
+                    <?= htmlspecialchars($d['items'][0]['book'] ?? '') ?> 
+                    <?= count($d['items']) > 1 ? '... <span style="font-size:0.75rem;color:var(--text-muted)">(+' . (count($d['items'])-1) . ' item)</span>' : '' ?>
+                </div>
+                <?php else: ?>
+                <span style="color:var(--text-muted)">-</span>
+                <?php endif; ?>
+            </td>
+            <td><?= $d['subtotal'] ?></td>
+            <td style="color:var(--green)"><?= $d['discount'] ?></td>
+            <td style="color:var(--accent);font-weight:700;font-size:1rem"><?= $d['total'] ?></td>
+            <td>
+                <?php if ($d['status'] === 'pending'): ?>
+                    <span class="badge badge-pending"><i class="fa-regular fa-clock"></i> Pending</span>
+                <?php elseif ($d['status'] === 'completed'): ?>
+                    <span class="badge badge-success"><i class="fa-solid fa-check"></i> Completed</span>
+                <?php else: ?>
+                    <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-xmark"></i> Cancelled</span>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php endif; ?>
+</div>
+
 <?php break;
 
 // ════════════════════ DEFAULT ════════════════════

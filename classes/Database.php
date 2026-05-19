@@ -92,6 +92,38 @@ class Database {
         return $stmt->get_result()->fetch_assoc();
     }
     
+    public function login(string $email, string $password): ?array {
+        $stmt = $this->conn->prepare("SELECT * FROM members WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($user = $result->fetch_assoc()) {
+            // Note: If no password is set, they can't login.
+            if ($user['password'] && password_verify($password, $user['password'])) {
+                return $user;
+            }
+        }
+        return null;
+    }
+
+    public function registerMember(Member $member, string $password): bool {
+        $stmt = $this->conn->prepare(
+            "INSERT INTO members (id, name, email, phone, membership_type, total_spent, join_date, password, role) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'member')"
+        );
+        $id = $member->getMemberId();
+        $name = $member->getName();
+        $email = $member->getEmail();
+        $phone = $member->getPhone();
+        $membership = $member->getMembershipType();
+        $spent = $member->getTotalSpent();
+        $joinDate = $member->getJoinDate();
+        $hash = password_hash($password, PASSWORD_DEFAULT);
+        
+        $stmt->bind_param("sssssdss", $id, $name, $email, $phone, $membership, $spent, $joinDate, $hash);
+        return $stmt->execute();
+    }
+
     public function addMember(Member $member): bool {
         $stmt = $this->conn->prepare(
             "INSERT INTO members (id, name, email, phone, membership_type, total_spent, join_date) 
@@ -139,6 +171,19 @@ class Database {
              ORDER BY t.created_at DESC"
         );
         return $result->fetch_all(MYSQLI_ASSOC) ?? [];
+    }
+    
+    public function getTransactionsByMemberId(string $memberId): array {
+        $stmt = $this->conn->prepare(
+            "SELECT t.*, m.name as member_name 
+             FROM transactions t 
+             JOIN members m ON t.member_id = m.id 
+             WHERE t.member_id = ?
+             ORDER BY t.created_at DESC"
+        );
+        $stmt->bind_param("s", $memberId);
+        $stmt->execute();
+        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC) ?? [];
     }
     
     public function getTransaction(string $id): ?array {

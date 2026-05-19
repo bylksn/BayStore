@@ -45,7 +45,8 @@ class DataStore {
                 $m['id'], 
                 $m['membership_type'], 
                 (float)$m['total_spent'], 
-                $m['join_date']
+                $m['join_date'],
+                $m['role']
             );
             $this->members[$m['id']] = $member;
         }
@@ -105,6 +106,18 @@ class DataStore {
             return true;
         }
         return false;
+    }
+    
+    public function registerMember(Member $member, string $password): bool {
+        if ($this->db->registerMember($member, $password)) {
+            $this->members[$member->getMemberId()] = $member;
+            return true;
+        }
+        return false;
+    }
+    
+    public function login(string $email, string $password): ?array {
+        return $this->db->login($email, $password);
     }
 
     public function deleteMember(string $id): bool {
@@ -179,5 +192,16 @@ class DataStore {
     // Stats
     public function getStats(): array {
         return $this->db->getStats();
+    }
+    
+    public function getMyTransactions(string $memberId): array {
+        $result = [];
+        foreach ($this->transactions as $tx) {
+            if ($tx->getMember()->getMemberId() === $memberId) {
+                $result[] = $tx;
+            }
+        }
+        usort($result, fn($a, $b) => strcmp($b->getCreatedAt(), $a->getCreatedAt()));
+        return $result;
     }
 }

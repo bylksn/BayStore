@@ -11,6 +11,7 @@ class Member extends Person {
     private string $membershipType; // bronze, silver, gold
     private float  $totalSpent;
     private string $joinDate;
+    private string $role;
 
     public function __construct(
         string $name,
@@ -19,7 +20,8 @@ class Member extends Person {
         string $memberId,
         string $membershipType = 'bronze',
         float $totalSpent = 0.0,
-        string $joinDate = ''
+        string $joinDate = '',
+        string $role = 'member'
     ) {
         // Memanggil constructor parent (Person)
         parent::__construct($name, $email, $phone);
@@ -27,6 +29,7 @@ class Member extends Person {
         $this->membershipType  = $membershipType;
         $this->totalSpent      = $totalSpent;
         $this->joinDate        = $joinDate ?: date('Y-m-d');
+        $this->role            = $role;
     }
 
     // Getters & Setters
@@ -34,6 +37,7 @@ class Member extends Person {
     public function getMembershipType(): string { return $this->membershipType; }
     public function getTotalSpent(): float      { return $this->totalSpent; }
     public function getJoinDate(): string       { return $this->joinDate; }
+    public function getRole(): string           { return $this->role; }
 
     public function setMembershipType(string $type): void {
         $allowed = ['bronze', 'silver', 'gold'];
